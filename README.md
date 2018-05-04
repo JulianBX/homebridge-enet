@@ -1,5 +1,14 @@
 # Initially by ChristophFausak
 
+# Changes:
+ v0.6.3 : Now the eNet-Commands can update the homekit states and brightness.
+          So, when using a hardware dimmer or switch the lightbulbs current state will be reflected.
+          There is an issue with time delay and overlapping messages by the mobileGate:
+            When changing the dimmer setting the mobile gate gives an update too fast and the bulb gets updated "on the way" to the desired dim setting.
+            Not yet sure how to slow things down!
+            Nontheless, it works with my dimmers and switches.
+            Hopefully I didn't break anything, so please be careful.
+
 # homebridge-enet
 
 Gira/Jung eNet plugin for homebridge: https://github.com/nfarina/homebridge
@@ -13,7 +22,7 @@ Or you use the sampe-gateway.js from the homebridge-enet package to read the con
 # Installation
 
 1. Install homebridge using: `npm install -g homebridge`
-2. Install this plugin using: `npm install -g https://github.com/ChristophFausak/homebridge-enet`
+2. Install this plugin using: `npm install -g https://github.com/JulianBX/homebridge-enet`
 3. Update your configuration file. See the sample below.
 
 # Configuration
