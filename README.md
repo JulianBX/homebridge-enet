@@ -1,7 +1,7 @@
 # Initially by ChristophFausak
 
 # Changes:
- v0.6.3 : Now the eNet-Commands can update the homekit states and brightness.
+ v0.6.4 : Now the eNet-Commands can update the homekit states and brightness.
           So, when using a hardware dimmer or switch the lightbulbs current state will be reflected.
           There is an issue with time delay and overlapping messages by the mobileGate:
             When changing the dimmer setting the mobile gate gives an update too fast and the bulb gets updated "on the way" to the desired dim setting.
