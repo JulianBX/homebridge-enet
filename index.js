@@ -160,9 +160,6 @@ eNetPlatform.prototype.setupDevices = function() {
     var accChannels = [];
     for (var k = 0; k < this.accessories.length; k++) {
 	accChannels.push(this.accessories[k].context.channel);
-	this.accessories[k].on('UpdateAvailable', function (obje){
-		console.log("Eventlistener for: " + this.accessories[k].context.name);
-	}.bind(this));
     }
 
     for (var i = 0; i < this.gateways.length; i++) {
@@ -170,10 +167,12 @@ eNetPlatform.prototype.setupDevices = function() {
 	gw.signIn(accChannels);
 	gw.on('UpdateAvailable', function (obje) {
 		if(this.accessories[obje.NUMBER-16].context.channel == obje.NUMBER) {
-			var service = this.accessories[obje.NUMBER-16].getService(Service.Lightbulb);
-			service.getCharacteristic(Characteristic.On).updateValue(obje.STATE);
-                        service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
 			var newValue= (obje.STATE=== "ON" ? true : false);
+			var service = this.accessories[obje.NUMBER-16].getService(Service.Lightbulb);
+//			console.log("\r\nChannel: " + obje.NUMBER + " ON-Cache: "+ service.getCharacteristic(Characteristic.On).value + " recv.: "+ obje.STATE + " new value: " + newValue);
+//			console.log("Channel: " + obje.NUMBER + "Bright-Cache: " + service.getCharacteristic(Characteristic.Brightness).value + " recv.: "+ obje.VALUE);
+			if(service.getCharacteristic(Characteristic.On).value != newValue) service.getCharacteristic(Characteristic.On).updateValue(newValue);
+                        if(service.getCharacteristic(Characteristic.Brightness).value != obje.VALUE) service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
                         this.accessories[obje.NUMBER-16].realOn = newValue;
 			this.accessories[obje.NUMBER-16].brightness = obje.VALUE;
 		}
@@ -240,6 +239,7 @@ eNetPlatform.prototype.createAccessory = function(gate, conf) {
     accessory.context.name = conf.name;
     accessory.context.duration = conf.duration;
     accessory.context.dimmable = conf.dimmable;
+//    accessory.context.lastCommand = Math.floor(Date.now()/1000);
 
     if (this.setupAccessory(accessory)) {
         accessory.reachable = true;
@@ -394,16 +394,17 @@ function setOn(position, callback) {
   if(lightbulb) {
   	if((position == true || position > 0) &&  this.realOn != true) {
         	this.realOn = true;
-//		console.log("Es werde Licht.");
+		console.log("Es werde Licht.");
   		this.gateway.setValue(this.context.channel, true, false, null);
 	}
 	else if((position == false || position == 0) &&  this.realOn != false) {
 		this.realOn =  false;
-//                console.log("Dunkle Nacht.");
+                console.log("Dunkle Nacht.");
 		this.gateway.setValue(this.context.channel, false, false, null);
 	}
   }
   else {
+	console.log("Keine Lampe!");
 	this.gateway.setValue(this.context.channel, position, false, function(err, res) {
       		if (err) {
         		  this.log.warn("Error setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + err);
