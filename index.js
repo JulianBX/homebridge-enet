@@ -394,12 +394,12 @@ function setOn(position, callback) {
   if(lightbulb) {
   	if((position == true || position > 0) &&  this.realOn != true) {
         	this.realOn = true;
-		console.log("Es werde Licht.");
+//		console.log("Lampe wird angeschaltet.");
   		this.gateway.setValue(this.context.channel, true, false, null);
 	}
 	else if((position == false || position == 0) &&  this.realOn != false) {
 		this.realOn =  false;
-                console.log("Dunkle Nacht.");
+//                console.log("Lampe wird ausgeschaltet.");
 		this.gateway.setValue(this.context.channel, false, false, null);
 	}
   }
