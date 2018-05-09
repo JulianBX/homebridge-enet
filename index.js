@@ -438,6 +438,7 @@ function setBrightness(brightness, callback) {
 
   this.brightness = brightness;
   if(brightness > 0) this.realOn = true;
+  else if(brightness == 0) this.realOn = false;
   this.gateway.setValueDim(this.context.channel, brightness, function(err, res) {
       if (err) {
           this.log.warn("Error setting " + this.context.name + " to " + this.brightness + ": " + err);
