@@ -20,6 +20,7 @@ function eNetPlatform(log, config, api) {
     this.accessories = [];
     this.delAccessories = [];
     this.gateways = [];
+    this.accChannelsGW = [];
     this.loadState = 2; // didFinishLaunching & discover
 
     var discover = new eNet.discover();
@@ -164,6 +165,7 @@ eNetPlatform.prototype.setupDevices = function() {
 
     for (var i = 0; i < this.gateways.length; i++) {
         var gw = this.gateways[i];
+        this.accChannelsGW = accChannels;
 	gw.signIn(accChannels);
 	gw.on('UpdateAvailable', function (obje) {
 		if(this.accessories[obje.NUMBER-16].context.channel == obje.NUMBER) {
@@ -374,9 +376,16 @@ function getPositionState(callback) {
 
 
 function getOn(callback) {
-//  this.gateway.signIn();
-  console.log(this.accessories);
-  this.log.info("getOn " + this.context.name + ": " + this.realOn);
+  if (!this.gateway) {
+    this.log.warn("eNet device not ready.");
+    callback(new Error("eNet device not ready."));
+    return;
+  }
+  //var channels = this.accChannelsGW;
+  //if (Array.isArray(channels)) this.gateway.signIn(channels);
+  //this.log.info("getOn: Getting:" + this.accChannelsGW);
+  this.gateway.refresh();
+  this.log.info("getOn true on of: " + this.context.name + ": " + this.realOn);
   callback(null, this.realOn);
 }
 
@@ -427,7 +436,8 @@ function setOn(position, callback) {
 
 
 function getBrightness(callback) {
-  console.log(this.accessories);
+  //console.log("getBrightness: " + this.accessories);
+  this.gateway.refresh();
   this.log.info("getBrightness " + this.context.name + ": " + this.brightness);
   callback(null, this.brightness);
 }
