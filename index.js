@@ -384,7 +384,7 @@ function getOn(callback) {
   //var channels = this.accChannelsGW;
   //if (Array.isArray(channels)) this.gateway.signIn(channels);
   //this.log.info("getOn: Getting:" + this.accChannelsGW);
-  this.gateway.refresh();
+  this.gateway.refresh(); //new implemented
   this.log.info("getOn true on of: " + this.context.name + ": " + this.realOn);
   callback(null, this.realOn);
 }
