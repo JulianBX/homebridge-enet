@@ -1,5 +1,7 @@
 # Initially by ChristophFausak
 
+This package has been forked after Julian's has disappeared from NPM Registry
+
 # Changes:
  v0.6.4 : Now the eNet-Commands can update the homekit states and brightness.
           So, when using a hardware dimmer or switch the lightbulbs current state will be reflected.
@@ -22,7 +24,7 @@ Or you use the sampe-gateway.js from the homebridge-enet package to read the con
 # Installation
 
 1. Install homebridge using: `npm install -g homebridge`
-2. Install this plugin using: `npm install -g https://github.com/JulianBX/homebridge-enet`
+2. Install this plugin using: `npm install -g https://github.com/levlevin/homebridge-gira-enet`
 3. Update your configuration file. See the sample below.
 
 # Configuration
