@@ -168,15 +168,43 @@ eNetPlatform.prototype.setupDevices = function() {
         this.accChannelsGW = accChannels;
 	gw.signIn(accChannels);
 	gw.on('UpdateAvailable', function (obje) {
-		if(this.accessories[obje.NUMBER-16].context.channel == obje.NUMBER) {
-			var newValue= (obje.STATE=== "ON" ? true : false);
-			var service = this.accessories[obje.NUMBER-16].getService(Service.Lightbulb);
-//			console.log("\r\nChannel: " + obje.NUMBER + " ON-Cache: "+ service.getCharacteristic(Characteristic.On).value + " recv.: "+ obje.STATE + " new value: " + newValue);
-//			console.log("Channel: " + obje.NUMBER + "Bright-Cache: " + service.getCharacteristic(Characteristic.Brightness).value + " recv.: "+ obje.VALUE);
-			if(service.getCharacteristic(Characteristic.On).value != newValue) service.getCharacteristic(Characteristic.On).updateValue(newValue);
-                        if(service.getCharacteristic(Characteristic.Brightness).value != obje.VALUE) service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
-                        this.accessories[obje.NUMBER-16].realOn = newValue;
-			this.accessories[obje.NUMBER-16].brightness = obje.VALUE;
+		this.log.info("UpdateAvailable: " + JSON.stringify(obje));
+		var service;
+		let acc = this.accessories.find(o => o.context.channel == obje.NUMBER);
+		if (acc) {
+			if (service = acc.getService(Service.Lightbulb)) {
+				var newValue= (obje.STATE=== "ON" ? true : false);
+//				console.log("\r\nChannel: " + obje.NUMBER + " ON-Cache: "+ service.getCharacteristic(Characteristic.On).value + " recv.: "+ obje.STATE + " new value: " + newValue);
+//				console.log("Channel: " + obje.NUMBER + "Bright-Cache: " + service.getCharacteristic(Characteristic.Brightness).value + " recv.: "+ obje.VALUE);
+				if(service.getCharacteristic(Characteristic.On).value != newValue) service.getCharacteristic(Characteristic.On).updateValue(newValue);
+                        	if(service.getCharacteristic(Characteristic.Brightness).value != obje.VALUE) service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
+                      		acc.realOn = newValue;
+				acc.brightness = obje.VALUE;
+			} else if (service = acc.getService(Service.Window)) {
+				if (!acc.initialized) {
+					var pos = 100 - obje.VALUE;
+					this.log.info("Initializig  position to " + pos);
+					
+					acc.targetPosition = pos;
+					acc.position = pos;
+					acc.initialized = true;
+				} else {
+					var targetPos = obje.SETPOINT == 255 ? acc.targetPosition : 100 - obje.SETPOINT;
+
+					if (service.getCharacteristic(Characteristic.TargetPosition).value != targetPos) {
+						this.log.info("Changing target position " + acc.targetPosition + " -> " + targetPos);
+						service.setCharacteristic(Characteristic.TargetPosition, targetPos);
+						acc.targetPosition = targetPos;
+					}
+					var pos = targetPos;
+					if (service.getCharacteristic(Characteristic.CurrentPosition).value != pos) {
+						this.log.info("Changing position " + acc.position + " -> "  + pos);
+
+						service.setCharacteristic(Characteristic.CurrentPosition, pos);
+						acc.position = pos;
+					}
+				}
+			}
 		}
 	}.bind(this));
     }
@@ -241,7 +269,6 @@ eNetPlatform.prototype.createAccessory = function(gate, conf) {
     accessory.context.name = conf.name;
     accessory.context.duration = conf.duration;
     accessory.context.dimmable = conf.dimmable;
-//    accessory.context.lastCommand = Math.floor(Date.now()/1000);
 
     if (this.setupAccessory(accessory)) {
         accessory.reachable = true;
@@ -278,6 +305,7 @@ eNetPlatform.prototype.setupAccessory = function(accessory) {
     else if (service = accessory.getService(Service.Window)) {
         accessory.position = 0;
         accessory.targetPosition = 0;
+	accessory.initialized = false;
 
         service.setCharacteristic(Characteristic.CurrentPosition, accessory.position);
         service.getCharacteristic(Characteristic.CurrentPosition)
@@ -328,9 +356,20 @@ eNetPlatform.prototype.setupAccessory = function(accessory) {
 //  Accessory notifications
 //
 
+function getPositionState(callback) {
+  this.log.info("getPositionState " + this.context.name + ": " + this.positionState);
+  if (this.initialized) callback(null, this.positionState);
+  else callback(new Error("eNet device not initialized."));
+}
+
 function getCurrentPosition(callback) {
-  this.log.info("getCurrentPosition " + this.context.name + ": " + this.position);
-  callback(null, this.position);
+  if (this.initialized) {
+  	this.log.info("getCurrentPosition " + this.context.name + ": " + this.position);
+	callback(null, this.position);
+  } else {
+  	this.log.info("getCurrentPosition " + this.context.name + ": not initialized");
+	callback(new Error("eNet device not ready."));
+  }
 }
 
 function setTargetPosition(position, callback) {
@@ -345,10 +384,7 @@ function setTargetPosition(position, callback) {
   if (this.position > position) this.positionState = Characteristic.PositionState.DECREASING
   else this.positionState = Characteristic.PositionState.INCREASING;
 
-  this.position = position;
-
-  this.getService(Service.Window).setCharacteristic(Characteristic.CurrentPosition, this.position);
-  this.getService(Service.Window).setCharacteristic(Characteristic.PositionState, this.positionState);
+  this.targetPosition = position;
 
   callback(null);
 
@@ -364,16 +400,7 @@ function setTargetPosition(position, callback) {
           //callback(null);
       }
   }.bind(this));
-
-  this.positionState = Characteristic.PositionState.STOPPED;
-  this.getService(Service.Window).setCharacteristic(Characteristic.PositionState, this.positionState);
 }
-
-function getPositionState(callback) {
-  this.log.info("getPositionState " + this.context.name + ": " + this.positionState);
-  callback(null, this.positionState);
-}
-
 
 function getOn(callback) {
   if (!this.gateway) {
