@@ -3,8 +3,12 @@
 This package has been forked after Julian's has disappeared from NPM Registry
 
 # Changes:
- v0.7.0 : Position updates for shutter devices.
- v0.6.4 : Now the eNet-Commands can update the homekit states and brightness.
+ ### v0.7.1
+ Fix timing issues on lightbulb devices.
+ ### v0.7.0
+ Position updates for shutter devices.
+ ### v0.6.4
+ Now the eNet-Commands can update the homekit states and brightness.
           So, when using a hardware dimmer or switch the lightbulbs current state will be reflected.
           There is an issue with time delay and overlapping messages by the mobileGate:
             When changing the dimmer setting the mobile gate gives an update too fast and the bulb gets updated "on the way" to the desired dim setting.
