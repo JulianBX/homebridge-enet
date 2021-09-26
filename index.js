@@ -66,7 +66,7 @@ eNetPlatform.prototype.setupDevices = function() {
         for (var i = 0; i < this.config.gateways.length; ++i) {
             var gw = this.config.gateways[i];
             if (Array.isArray(gw.accessories)) {
-                var g;
+                var g=null;
                 if (gw.host) g = this.findGateway(gw.host);
                 if (!g && gw.mac) g = this.findGateway(gw.mac);
                 if (!g && gw.name) g = this.findGateway(gw.name);
