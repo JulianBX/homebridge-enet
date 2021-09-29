@@ -1,6 +1,6 @@
 {
   "name": "homebridge-gira-enet",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Gira/Jung eNet plugin for homebridge: https://github.com/nfarina/homebridge",
   "license": "MIT",
   "keywords": [
@@ -18,6 +18,5 @@
     "url": "git://github.com/levlevin/homebridge-gira-enet.git"
   },
   "dependencies": {
-    "node-enet-api": "git://github.com/levlevin/node-enet-api.git"
   }
 }

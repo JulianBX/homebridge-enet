@@ -6,7 +6,13 @@ const net = require('net');
 const util = require('util');
 const EventEmitter = require('events');
 
-function gateway(config) {
+class NoLogger {
+    debug() {}
+    info() {}
+    error() {}
+};
+
+function gateway(config, log) {
     this.idleTimeout = 30000000;
     this.host = config.host;
     this.name = config.name || config.host;
@@ -15,6 +21,7 @@ function gateway(config) {
     this.client = new net.Socket();
     this.connected = false;
     this.data = '';
+    this.log = log || new NoLogger();
 
     this.recentChannels = [];
 
@@ -23,19 +30,18 @@ function gateway(config) {
     this.client.on('close', function() {
         this.connected = false;
         this.emit('gateway', null, null);
-//        console.log('gateway close');
+    	this.log.debug("Gateway", this.name, "on close");
     }.bind(this));
 
     this.client.on('error', function (err) {
+    	this.log.debug("Gateway", this.name, "on error", err);
         this.connected = false;
         this.emit('gateway', err, null);
-//        console.log('gateway error');
     }.bind(this));
 
     this.client.on('data', function(data) {
         this.data += data;
         var arr = this.data.split("\r\n\r\n");
-
         this.data = arr[arr.length-1];
 
         for (var i = 0; i < arr.length-1; ++i) {
@@ -72,8 +78,8 @@ function gateway(config) {
 util.inherits(gateway, EventEmitter);
 
 
-module.exports = function (config) {
-    return new gateway(config);
+module.exports = function (config, log) {
+    return new gateway(config, log);
 }
 
 
@@ -81,15 +87,18 @@ gateway.prototype.connect = function() {
     if (this.connected) return;
     if (!this.host) return;
     this.connected = true;
+    this.log.debug("Gateway", this.name, "connecting.");
 
     this.client.connect(CONNECTION_PORT, this.host, function() {
             this.client.setTimeout(this.idleTimeout, function() {
+    		this.log.debug("Gateway", this.name, "idle timeout.");
                 this.disconnect();
             }.bind(this))
         }.bind(this));
 }
 
 gateway.prototype.disconnect = function() {
+    this.log.debug("Gateway", this.name, "disconnect.");
     this.client.end();
     this.connected = false;
 }

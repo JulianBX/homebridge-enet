@@ -21,7 +21,6 @@ function eNetPlatform(log, config, api) {
     this.accessories = [];
     this.delAccessories = [];
     this.gateways = [];
-    this.accChannelsGW = [];
     this.loadState = 2; // didFinishLaunching & discover
 
     var discover = new eNet.discover();
@@ -45,7 +44,7 @@ function eNetPlatform(log, config, api) {
 
 eNetPlatform.prototype.newGateway = function (gw) {
     ++this.loadState;
-    var g = new eNet.gateway(gw);
+    var g = new eNet.gateway(gw, this.log);
 
     g.getChannelInfo(function(err, res) {
         if (!err)
