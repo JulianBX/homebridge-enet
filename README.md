@@ -3,6 +3,8 @@
 This package has been forked after Julian's has disappeared from NPM Registry
 
 # Changes:
+ ### v0.7.3
+ Integrated eNet-api. Improved debug logging.
  ### v0.7.2
  Position updates for switch devices.  
  Allow duration property on lightbulb devices.
