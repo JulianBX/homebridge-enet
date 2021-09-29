@@ -158,88 +158,127 @@ eNetPlatform.prototype.setupDevices = function() {
     this.log.info("Platform initialization finishd: " + this.accessories.length + " accessories available.");
 
 
-    var accChannels = [];
-    for (var k = 0; k < this.accessories.length; k++) {
-	accChannels.push(this.accessories[k].context.channel);
-    }
-
     for (var i = 0; i < this.gateways.length; i++) {
         var gw = this.gateways[i];
-        this.accChannelsGW = accChannels;
-	gw.signIn(accChannels);
-	gw.on('UpdateAvailable', function (obje) {
-		this.log.info("UpdateAvailable: " + JSON.stringify(obje));
-		if (obje.STATE === "UNDEFINED") return;
-		var service;
-		let acc = this.accessories.find(o => o.context.channel == obje.NUMBER);
-		if (acc) {
-			if (service = acc.getService(Service.Lightbulb)) {
-				var newValue= (obje.STATE=== "ON" ? true : false);
 
-				if (!acc.initialized) {
-					this.log.info("Initilizating light " + acc.context.name + " state to " + (newValue?"ON":"OFF"));
-					service.getCharacteristic(Characteristic.On).updateValue(newValue);
-                      			acc.realOn = newValue;
-					service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
-					acc.brightness = obje.VALUE;
+        var accChannels = [];
+        for (var k = 0; k < this.accessories.length; k++) {
+            if (this.accessories[k].context.gateID == gw.id) accChannels.push(this.accessories[k].context.channel);
+        }
+    
+        gw.signIn(accChannels);
+        gw.on('UpdateAvailable', function (gwid, obje) {
+            let acc = this.findAccessory(gwid, Number(obje.NUMBER));
+            if (acc) {
+                this.log.info("UpdateAvailable: " + acc.context.name + JSON.stringify(obje));
 
-					acc.initialized = true;
-				} else {
-					if(service.getCharacteristic(Characteristic.On).value != newValue) {
-						this.log.info("Changing light state " + (acc.realOn?"ON":"OFF") + " -> " + (newValue?"ON":"OFF"));
-						service.getCharacteristic(Characteristic.On).updateValue(newValue);
-        	              			acc.realOn = newValue;
+                var service;
+                if (service = acc.getService(Service.Lightbulb)) {
+                    if ((obje.STATE === "UNDEFINED") && acc.initialized) return;
 
-						if (acc.callback) {
-							this.log.debug("calling callback...");
-							acc.callback.call(null);
-							acc.callback = null;
-						}
-				}
-	                        	if(service.getCharacteristic(Characteristic.Brightness).value != obje.VALUE) {
-						this.log.info("Changing light brightness " + acc.brightness + " -> " + obje.VALUE);
+                    var newValue= (obje.STATE === "ON" ? true : false);
 
-						service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
-						acc.brightness = obje.VALUE;
+                    if (!acc.initialized) {
+                        this.log.info("Initilizating light " + acc.context.name + " state to " + (newValue?"ON":"OFF"));
+                        acc.realOn = newValue;
+                        service.getCharacteristic(Characteristic.On).updateValue(newValue);
 
-						if (acc.brightnessCallback) {
-							acc.brightnessCallback.call(err);
-							acc.brightnessCallback = null;
-						}
-					}
-				}
-			} else if (service = acc.getService(Service.Window)) {
-				if (!acc.initialized) {
-					var pos = 100 - obje.VALUE;
-					if (pos < 0 || pos > 100) return;
+                        if (acc.context.dimmable) {
+                            var brightness = obje.VALUE;
+                            if ((brightness < 0) || (brightness > 100)) brightness = 100;
 
-					this.log.info("Initializig  shutter " + acc.context.name + " position to " + pos);
-					
-					acc.targetPosition = pos;
-					service.setCharacteristic(Characteristic.CurrentPosition, pos);
-					acc.position = pos;
-					acc.initialized = true;
-				} else {
-					var targetPos = obje.SETPOINT == 255 ? acc.targetPosition : 100 - obje.SETPOINT;
+                            acc.brightness = brightness;
+                            service.getCharacteristic(Characteristic.Brightness).updateValue(brightness);
+                        }
 
-					if (service.getCharacteristic(Characteristic.TargetPosition).value != targetPos) {
-						this.log.info("Changing target position " + acc.targetPosition + " -> " + targetPos);
-						service.setCharacteristic(Characteristic.TargetPosition, targetPos);
-						acc.targetPosition = targetPos;
-					}
-					var pos = targetPos;
-					if (service.getCharacteristic(Characteristic.CurrentPosition).value != pos) {
-						this.log.info("Changing position " + acc.position + " -> "  + pos);
+                        acc.initialized = true;
+                    } else {
+                        if(acc.realOn != newValue) {
+                            this.log.info("Changing light " + acc.context.name + " state " + (acc.realOn?"ON":"OFF") + " -> " + (newValue?"ON":"OFF"));
+                            acc.realOn = newValue;
+                            service.getCharacteristic(Characteristic.On).updateValue(newValue);
 
-						service.setCharacteristic(Characteristic.CurrentPosition, pos);
-						acc.position = pos;
-					}
-				}
-			} else {
-				this.log.debug("unknown service");
-			}
-		}
-	}.bind(this));
+                            if (acc.callback) {
+                                this.log.debug("calling callback...");
+                                acc.callback.call(null);
+                                acc.callback = null;
+                            }
+                        }
+        
+                        if(acc.context.dimmable && (obje.VALUE >= 0) && (obje.VALUE <= 100) && (acc.brightness != obje.VALUE)) {
+                            this.log.info("Changing light " + acc.context.name + " brightness " + acc.brightness + " -> " + obje.VALUE);
+
+                            acc.brightness = obje.VALUE;
+                            service.getCharacteristic(Characteristic.Brightness).updateValue(obje.VALUE);
+
+                            if (acc.brightnessCallback) {
+                                acc.brightnessCallback.call(err);
+                                acc.brightnessCallback = null;
+                            }
+                        }
+                    }
+                } else if (service = acc.getService(Service.Switch)) {
+                    if ((obje.STATE === "UNDEFINED") && acc.initialized) return;
+
+                    var newValue= (obje.STATE === "ON" ? true : false);
+
+                    if (!acc.initialized) {
+                        this.log.info("Initilizating switch " + acc.context.name + " state to " + (newValue?"ON":"OFF"));
+                        acc.realOn = newValue;
+                        service.getCharacteristic(Characteristic.On).updateValue(newValue);
+
+                        acc.initialized = true;
+                    } else {
+                        if(acc.realOn != newValue) {
+                            this.log.info("Changing switch " + acc.context.name + " state " + (acc.realOn?"ON":"OFF") + " -> " + (newValue?"ON":"OFF"));
+                            acc.realOn = newValue;
+                            service.getCharacteristic(Characteristic.On).updateValue(newValue);
+
+                            if (acc.callback) {
+                                this.log.debug("calling callback...");
+                                acc.callback.call(null);
+                                acc.callback = null;
+                            }
+                        }
+                    }
+                } else if (service = acc.getService(Service.Window)) {
+                    if (!acc.initialized) {
+                        var pos = 100 - obje.VALUE;
+                        if ((pos >=0) && (pos <= 100)) acc.targetPosition = acc.position = pos;
+
+                        this.log.info("Initializig shutter " + acc.context.name + " position to " + acc.position);
+                        
+                        service.setCharacteristic(Characteristic.CurrentPosition, acc.position);
+                        acc.initialized = true;
+                    } else {
+                        var position = 100 - obje.VALUE;
+                        if ((position < 0) || (position > 100)) position = acc.position;
+
+                        var targetPos = 100 - obje.SETPOINT;
+                        if ((targetPos < 0) || (targetPos > 100)) targetPos = acc.targetPosition;
+
+                        if (obje.STATE === "OFF") targetPos = position;
+                        else if ((position > acc.position) && (targetPos < position)) targetPos = position;
+                        else if ((position < acc.position) && (targetPos > position)) targetPos = position;
+
+                        if (acc.targetPosition != targetPos) {
+                            this.log.info("Changing shutter " + acc.context.name + " target position " + acc.targetPosition + " -> " + targetPos);
+                            acc.targetPosition = targetPos;
+                            service.getCharacteristic(Characteristic.TargetPosition).updateValue(targetPos);
+                        }
+
+                        if (acc.position != position) {
+                            this.log.info("Changing shutter " + acc.context.name + " position " + acc.position + " -> "  + position);
+
+                            acc.position = position;
+                            service.setCharacteristic(Characteristic.CurrentPosition, position);
+                        }
+                    }
+                } else {
+                    this.log.debug("unknown service");
+                }
+            }
+    	}.bind(this, gw.id));
     }
 
 
@@ -286,10 +325,11 @@ eNetPlatform.prototype.createAccessory = function(gate, conf) {
     }
     else if (conf.type === "Light") {
         accessory.addService(Service.Lightbulb, conf.name);
-	accessory.realOn = false;
+    	accessory.realOn = false;
     }
     else if (conf.type === "Switch") {
         accessory.addService(Service.Switch, conf.name)
+    	accessory.realOn = false;
     }
     else {
         this.log.warn("Cannot add accessory, invalid config: " + JSON.stringify(conf));
@@ -327,19 +367,22 @@ eNetPlatform.prototype.setupAccessory = function(accessory) {
         service
           .getCharacteristic(Characteristic.On)
           .on('set', setOn.bind(accessory))
-	  .on('get', getOn.bind(accessory));
+    	  .on('get', getOn.bind(accessory));
 
-	accessory.initialized = false;
+    	accessory.initialized = false;
     }
     else if (service = accessory.getService(Service.Switch)) {
         service
           .getCharacteristic(Characteristic.On)
-          .on('set', setOn.bind(accessory));
+          .on('set', setOn.bind(accessory))
+    	  .on('get', getOn.bind(accessory));
+
+        accessory.initialized = false;
     }
     else if (service = accessory.getService(Service.Window)) {
         accessory.position = 0;
         accessory.targetPosition = 0;
-	accessory.initialized = false;
+    	accessory.initialized = false;
 
         service.setCharacteristic(Characteristic.CurrentPosition, accessory.position);
         service.getCharacteristic(Characteristic.CurrentPosition)
@@ -347,6 +390,7 @@ eNetPlatform.prototype.setupAccessory = function(accessory) {
 
         service.setCharacteristic(Characteristic.TargetPosition, accessory.position);
         service.getCharacteristic(Characteristic.TargetPosition)
+          .on('get', getTargetPosition.bind(accessory))
           .on('set', setTargetPosition.bind(accessory));
 
         // Characteristic.PositionState.DECREASING = 0;
@@ -410,12 +454,24 @@ function getCurrentPosition(callback) {
   }
 }
 
+function getTargetPosition(callback) {
+    if (this.initialized) {
+        this.log.info("getTargetPosition " + this.context.name + ": " + this.position);
+      callback(null, this.position);
+    } else {
+        this.log.info("getTargetPosition " + this.context.name + ": not initialized");
+      callback(new Error("eNet device not ready."));
+    }
+}
+
 function setTargetPosition(position, callback) {
   if (!this.gateway) {
     this.log.warn("eNet device not ready.");
     callback(new Error("eNet device not ready."));
     return;
   }
+
+  if (this.targetPosition == position) callback(null);
 
   this.log.info("Setting " + this.context.name + " to " + position);
 
@@ -451,50 +507,44 @@ function getOn(callback) {
 }
 
 function setOn(position, callback) {
-  if (!this.gateway) {
-    this.log.warn("eNet device not ready.");
-    callback(new Error("eNet device not ready."));
-    return;
-  }
+    if (!this.gateway) {
+        this.log.warn("eNet device not ready.");
+        callback(new Error("eNet device not ready."));
+        return;
+    }
 
-  this.log.info("Setting " + this.context.name + " to " + (position === true ? "on" : "off"));
+    if(this.realOn == position) callback(null);
 
-  var lightbulb = this.getService(Service.Lightbulb);
-  if(lightbulb) {
-  	if((position == true || position > 0) &&  this.realOn != true) {
-		if (this.callback) this.callback.call(new Error("uncalled callback!"));
-		this.callback = callback;
-  		this.gateway.setValue(this.context.channel, true, false, null);
-	}
-	else if((position == false || position == 0) &&  this.realOn != false) {
-		if (this.callback) this.callback.call(new Error("uncalled callback!"));
-		this.callback = callback;
-		this.gateway.setValue(this.context.channel, false, false, null);
-	}
-  	else callback(null);
-  }
-  else {
-  	callback(null);
-	console.log("Keine Lampe!");
-	this.log.debug("switch: " + !!this.getService(Service.Switch));
-	this.gateway.setValue(this.context.channel, position, false, function(err, res) {
-      		if (err) {
-        		  this.log.warn("Error setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + err);
-        		  //callback(err);
-      		}
-      		else {
-          		this.log.info("Succeeded setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + JSON.stringify(res));
-          		//callback(null);
-          		if (position && this.context.duration) {
-              			var service = this.getService(Service.Lightbulb) || this.getService(Service.Switch);
-              			if (service) {
-                  			setTimeout(function() {
-                  			service.getCharacteristic(Characteristic.On).setValue(false);}, this.context.duration * 1000);
-              			}
-          		}
-      		}
-  	}.bind(this));
-  }
+    this.log.info("Setting " + this.context.name + " to " + (position === true ? "on" : "off"));
+
+    var service = this.getService(Service.Lightbulb) || this.getService(Service.Switch);
+    if(service) {
+        position = !!position;
+        if (this.callback) this.callback.call(new Error("uncalled callback!"));
+        this.callback = callback;
+        this.gateway.setValue(this.context.channel, position, false, function(err, res) {
+            if (err) {
+                this.log.warn("Error setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + err);
+                if (this.callback) {
+                    this.callback.call(err);
+                    this.callback = null;
+                }
+            }
+            else {
+                this.log.info("Succeeded setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + JSON.stringify(res));
+                if (position && this.context.duration) {
+                        var service = this.getService(Service.Lightbulb) || this.getService(Service.Switch);
+                        if (service) {
+                            setTimeout(function() {
+                            service.getCharacteristic(Characteristic.On).setValue(false);}, this.context.duration * 1000);
+                        }
+                }
+            }
+        }.bind(this));
+    } else {
+        this.log.error("setON: Unknown device type!");
+        callback(new Error("Unknown device type!"));
+    }
 }
 
 
@@ -514,9 +564,15 @@ function setBrightness(brightness, callback) {
     callback(new Error("eNet device not ready."));
     return;
   }
+  if (!this.context.dimmable) {
+    this.log.warn("eNet device not dimmable.");
+    callback(new Error("eNet device not dimmable."));
+    return;
+  }
+
+  if (this.brightness == brightness) callback(null);
 
   this.log.info("setBrightness " + this.context.name + ": " + brightness);
-  callback(null);
 
   this.brightness = brightness;
   if(brightness > 0) this.realOn = true;
@@ -527,11 +583,11 @@ function setBrightness(brightness, callback) {
 
   this.gateway.setValueDim(this.context.channel, brightness, function(err, res) {
       if (err) {
-          this.log.warn("Error setting " + this.context.name + " to " + this.brightness + ": " + err);
-	  if (this.brightnessCallback) {
-		  this.brightnessCallback.call(err);
-		  this.brightnessCallback = null;
-	  }
+        this.log.warn("Error setting " + this.context.name + " to " + this.brightness + ": " + err);
+        if (this.brightnessCallback) {
+            this.brightnessCallback.call(err);
+            this.brightnessCallback = null;
+        }
       }
       else {
           this.log.info("Succeeded setting " + this.context.name + " to " + this.brightness + " : " + JSON.stringify(res));

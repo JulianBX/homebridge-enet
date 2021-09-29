@@ -3,6 +3,11 @@
 This package has been forked after Julian's has disappeared from NPM Registry
 
 # Changes:
+ ### v0.7.2
+ Position updates for switch devices.  
+ Allow duration property on lightbulb devices.
+ Fix shutter callback issues.
+ Fix issues with status updates when using multiple gateways.
  ### v0.7.1
  Fix timing issues on lightbulb devices.
  ### v0.7.0
