@@ -1,6 +1,7 @@
 "use strict";
 
-const eNet = require('node-enet-api');
+const eNet = require("./eNet-api/api");
+
 
 var Service, Characteristic, Accessory, UUIDGen;
 
