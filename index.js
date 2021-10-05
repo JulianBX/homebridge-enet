@@ -471,7 +471,10 @@ function setTargetPosition(position, callback) {
     return;
   }
 
-  if (this.targetPosition == position) callback(null);
+  if (this.targetPosition == position) {
+	  callback(null);
+	  return;
+  }
 
   this.log.info("Setting " + this.context.name + " to " + position);
 
@@ -513,7 +516,10 @@ function setOn(position, callback) {
         return;
     }
 
-    if(this.realOn == position) callback(null);
+    if(this.realOn == position) {
+	callback(null);
+	return;
+    }
 
     this.log.info("Setting " + this.context.name + " to " + (position === true ? "on" : "off"));
 
@@ -570,7 +576,10 @@ function setBrightness(brightness, callback) {
     return;
   }
 
-  if (this.brightness == brightness) callback(null);
+  if (this.brightness == brightness) {
+	  callback(null);
+	  return;
+  }
 
   this.log.info("setBrightness " + this.context.name + ": " + brightness);
 
