@@ -13,7 +13,7 @@ class NoLogger {
 };
 
 function gateway(config, log) {
-    this.idleTimeout = 30000000;
+    this.idleTimeout = 0;
     this.host = config.host;
     this.name = config.name || config.host;
     this.id = config.mac || config.name;
@@ -25,18 +25,30 @@ function gateway(config, log) {
 
     this.recentChannels = [];
 
-  //  this.commandQueue = [];
-
     this.client.on('close', function() {
+    	this.log.debug("Gateway", this.name, "on close");
         this.connected = false;
         this.emit('gateway', null, null);
-    	this.log.debug("Gateway", this.name, "on close");
+	if (this.recentChannels.length) {
+    	    this.log.info("Gateway", this.name, "closed. Reconnecting in 10 seconds.");
+            setTimeout(10000, function() {
+    		this.log.debug("Gateway", this.name, "signIn");
+                this.signIn(this.recentChannels);
+            }.bind(this));
+	}
     }.bind(this));
 
     this.client.on('error', function (err) {
-    	this.log.debug("Gateway", this.name, "on error", err);
+    	this.log.error("Gateway", this.name, "on error", err);
         this.connected = false;
         this.emit('gateway', err, null);
+	if (this.recentChannels.length) {
+    	    this.log.info("Gateway", this.name, "will try to reconnect in 60 seconds.");
+            setTimeout(60000, function() {
+    		this.log.debug("Gateway", this.name, "signIn");
+                this.signIn(this.recentChannels);
+            }.bind(this));
+	}
     }.bind(this));
 
     this.client.on('data', function(data) {
@@ -167,12 +179,12 @@ gateway.prototype.getProjectList = function(callback){
 //  Channel commands
 //
 
-gateway.prototype.signOut = function(channels, callback){
+gateway.prototype.signOut = function(callback){
     var l;
 
-    if (!Array.isArray(channels))
+    if (!this.recentChannels.length)
     {
-        callback && callback(new Error('signOut needs a channels array.'));
+        callback && callback(new Error('signOut: Not signed in.'));
         return;
     }
 
@@ -180,8 +192,9 @@ gateway.prototype.signOut = function(channels, callback){
 
     if (!this.connected) this.connect();
 
-    var msg = `{"ITEMS":${JSON.stringify(channels)},"CMD":"ITEM_VALUE_SIGN_OUT_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
+    var msg = `{"ITEMS":${JSON.stringify(this.recentChannels)},"CMD":"ITEM_VALUE_SIGN_OUT_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
     this.client.write(msg);
+    this.recentChannels = [];
 
 // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_OUT_RES"}
 }
@@ -204,26 +217,6 @@ gateway.prototype.signIn = function(channels, callback){
 
 // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_IN_RES","ITEMS":[16]}
 }
-
-gateway.prototype.refresh = function(callback){
-    var l;
-
-    if (!Array.isArray(this.recentChannels))
-    {
-	console.log("gateway.prototype.refresh: No recentChannels yet ");
-        if (callback) callback(new Error('signIn needs a channels array.'));
-        return;
-    }
-    if (callback) l = new responseListener(this, "ITEM_VALUE_SIGN_IN_RES", callback);
-
-    if (!this.connected) this.connect();
-    console.log("gateway.prototype.refresh: Refreshing following channels: " + this.recentChannels);
-    var msg = `{"ITEMS":${JSON.stringify(this.recentChannels)},"CMD":"ITEM_VALUE_SIGN_IN_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
-
-// response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_IN_RES","ITEMS":[16]}
-}
-
 
 gateway.prototype.setValue = function(channel, on, long, callback){
     var l;
