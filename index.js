@@ -258,8 +258,8 @@ eNetPlatform.prototype.setupDevices = function() {
                         if ((targetPos < 0) || (targetPos > 100)) targetPos = acc.targetPosition;
 
                         if (obje.STATE === "OFF") targetPos = position;
-                        else if ((position > acc.position) && (targetPos < position)) targetPos = position;
-                        else if ((position < acc.position) && (targetPos > position)) targetPos = position;
+                        //else if ((position > acc.position) && (targetPos < position)) targetPos = 100;
+                        //else if ((position < acc.position) && (targetPos > position)) targetPos = 0;
 
                         if (acc.targetPosition != targetPos) {
                             this.log.info("Changing shutter " + acc.context.name + " target position " + acc.targetPosition + " -> " + targetPos);
