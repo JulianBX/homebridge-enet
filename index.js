@@ -22,6 +22,7 @@ function eNetPlatform(log, config, api) {
     this.delAccessories = [];
     this.gateways = [];
     this.loadState = 2; // didFinishLaunching & discover
+    this.gatewayNotFound = false;
 
     var discover = new eNet.discover();
 
@@ -56,7 +57,10 @@ eNetPlatform.prototype.newGateway = function (gw) {
             else err = JSON.stringify(res);
         }
 
-        if (err) this.log.warn("Failed to get gateway channels, ignoring gateway. Error: " + err);
+        if (err) {
+            this.gatewayNotFound = true;
+            this.log.warn("Failed to get gateway channels, ignoring gateway. Error: " + err);
+        }
         if (--this.loadState === 0) this.setupDevices();
     }.bind(this));
 };
@@ -85,7 +89,10 @@ eNetPlatform.prototype.setupDevices = function() {
                             else err = JSON.stringify(res);
                         }
 
-                        if (err) this.log.warn("Failed to get gateway channels, ignoring gateway. Error: " + err);
+                        if (err) {
+                            this.gatewayNotFound = true;
+                            this.log.warn("Failed to get gateway channels, ignoring gateway. Error: " + err);
+                        }
                         if (--this.loadState === 0) this.setupDevices();
                     }.bind(this));
 
@@ -116,7 +123,10 @@ eNetPlatform.prototype.setupDevices = function() {
                         if (!a || !a.reachable) this.createAccessory(g, acc);
                     }
                 }
-                else this.log.warn("Cannot find gateway: " + JSON.stringify(gw));
+                else {
+                    this.gatewayNotFound = true;
+                    this.log.warn("Cannot find gateway: " + JSON.stringify(gw));
+                }
             }
             else this.log.warn("Gateway has no accessories: " + JSON.stringify(gw));
         }
@@ -145,7 +155,7 @@ eNetPlatform.prototype.setupDevices = function() {
             if (acc.context.type  === "Light") {
             }
         }
-        else {
+        else if (!this.gatewayNotFound) {
             this.log.info("Deleting old accessory: " + JSON.stringify(acc.context));
             this.delAccessories.push(acc);
         }
@@ -355,13 +365,6 @@ eNetPlatform.prototype.setupAccessory = function(accessory) {
     var service;
 
     accessory.log = this.log;
-
-    if (accessory.getService(Service.WindowCovering)) {
-        this.log.info("setupAccessory: Rejecting WindowCovering acessory" + accessory.context.name);
-
-        this.delAccessories.push(accessory);
-        return false;
-    }
 
     if (service = accessory.getService(Service.Lightbulb)) {
         service
