@@ -36,7 +36,7 @@ Or you use the sampe-gateway.js from the homebridge-enet package to read the con
 # Installation
 
 1. Install homebridge using: `npm install -g homebridge`
-2. Install this plugin using: `npm install -g https://github.com/levlevin/homebridge-gira-enet`
+2. Install this plugin using: `npm install -g https://github.com/JulianBX/homebridge-enet`
 3. Update your configuration file. See the sample below.
 
 # Configuration

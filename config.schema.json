@@ -1,0 +1,141 @@
+{
+  "pluginAlias": "eNetPlatform",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Gira/Jung eNet Smart Home Integration für Apple HomeKit",
+  "footerDisplay": "Die konfigurierten Geräte erscheinen automatisch in der Apple Home App.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "eNet",
+        "required": true
+      },
+      "autodiscover": {
+        "title": "Auto-Discovery",
+        "type": "boolean",
+        "default": true,
+        "description": "Automatische Erkennung von Gateways im Netzwerk via UDP Broadcast"
+      },
+      "gateways": {
+        "title": "Gateways",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Gateway Name",
+              "type": "string",
+              "description": "Name des Gateways (z.B. 'Mobile Gate')",
+              "placeholder": "Mobile Gate"
+            },
+            "host": {
+              "title": "IP-Adresse",
+              "type": "string",
+              "format": "ipv4",
+              "description": "IP-Adresse des Gateways (optional bei Auto-Discovery)",
+              "placeholder": "192.168.1.100"
+            },
+            "mac": {
+              "title": "MAC-Adresse",
+              "type": "string",
+              "description": "MAC-Adresse des Gateways (optional)",
+              "placeholder": "00:11:22:33:44:55"
+            },
+            "accessories": {
+              "title": "Geräte",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "title": "Gerätename",
+                    "type": "string",
+                    "required": true,
+                    "description": "Name des Geräts in HomeKit"
+                  },
+                  "channel": {
+                    "title": "Kanal",
+                    "type": "integer",
+                    "required": true,
+                    "minimum": 16,
+                    "maximum": 255,
+                    "description": "eNet Kanal-Nummer (beginnt bei 16)"
+                  },
+                  "type": {
+                    "title": "Gerätetyp",
+                    "type": "string",
+                    "required": true,
+                    "default": "Light",
+                    "oneOf": [
+                      { "title": "Licht", "enum": ["Light"] },
+                      { "title": "Schalter", "enum": ["Switch"] },
+                      { "title": "Rolladen/Jalousie", "enum": ["Shutter"] }
+                    ]
+                  },
+                  "dimmable": {
+                    "title": "Dimmbar",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Nur für Licht-Geräte: Dimmer aktivieren",
+                    "condition": {
+                      "functionBody": "return model.gateways && model.gateways[arrayIndices[0]] && model.gateways[arrayIndices[0]].accessories && model.gateways[arrayIndices[0]].accessories[arrayIndices[1]] && model.gateways[arrayIndices[0]].accessories[arrayIndices[1]].type === 'Light';"
+                    }
+                  },
+                  "duration": {
+                    "title": "Auto-Aus (Sekunden)",
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Automatisch ausschalten nach X Sekunden (optional)",
+                    "condition": {
+                      "functionBody": "return model.gateways && model.gateways[arrayIndices[0]] && model.gateways[arrayIndices[0]].accessories && model.gateways[arrayIndices[0]].accessories[arrayIndices[1]] && (model.gateways[arrayIndices[0]].accessories[arrayIndices[1]].type === 'Light' || model.gateways[arrayIndices[0]].accessories[arrayIndices[1]].type === 'Switch');"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    {
+      "type": "fieldset",
+      "title": "Allgemein",
+      "items": ["name", "autodiscover"]
+    },
+    {
+      "key": "gateways",
+      "type": "array",
+      "title": "Gateways",
+      "buttonText": "Gateway hinzufügen",
+      "items": [
+        {
+          "type": "fieldset",
+          "title": "Gateway",
+          "items": [
+            "gateways[].name",
+            "gateways[].host",
+            "gateways[].mac",
+            {
+              "key": "gateways[].accessories",
+              "type": "array",
+              "title": "Geräte",
+              "buttonText": "Gerät hinzufügen",
+              "items": [
+                "gateways[].accessories[].name",
+                "gateways[].accessories[].channel",
+                "gateways[].accessories[].type",
+                "gateways[].accessories[].dimmable",
+                "gateways[].accessories[].duration"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

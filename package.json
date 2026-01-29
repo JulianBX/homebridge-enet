@@ -1,21 +1,27 @@
 {
-  "name": "homebridge-gira-enet",
-  "version": "0.7.3",
-  "description": "Gira/Jung eNet plugin for homebridge: https://github.com/nfarina/homebridge",
+  "name": "homebridge-enet-julianbx",
+  "version": "1.2.1",
+  "description": "Gira/Jung eNet plugin for Homebridge",
+  "main": "index.js",
   "license": "MIT",
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "Gira",
+    "eNet"
   ],
   "engines": {
-    "node": ">=0.12.0",
-    "homebridge": ">=0.2.0"
+    "homebridge": ">=1.0.0",
+    "node": ">=18.0.0"
   },
   "author": {
     "name": "Christoph Fausak, JulianBX & Lev Levin"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/levlevin/homebridge-gira-enet.git"
+    "url": "https://github.com/JulianBX/homebridge-enet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JulianBX/homebridge-enet/issues"
   },
   "dependencies": {
   }
