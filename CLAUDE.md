@@ -19,6 +19,12 @@ npm install
 # Install plugin locally for development
 npm link
 
+# Version erhöhen
+npm patch version
+
+#Änderungen veröffentlichen
+npm publish
+
 # Test plugin with homebridge
 homebridge -D -P .
 ```

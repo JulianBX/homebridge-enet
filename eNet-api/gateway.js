@@ -64,18 +64,44 @@ function gateway(config, log) {
                 // Check for channel messages
                 // {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_UPDATE_IND","VALUES":[{"NUMBER":"16","VALUE":"1","STATE":"ON","SETPOINT":"255"}]}
                 if (json && (json.CMD == "ITEM_UPDATE_IND") && Array.isArray(json.VALUES)) {
-                    // Duplicate filtering
+                    // Duplicate filtering (keep as fallback safety)
                     var updateKey = JSON.stringify(json);
                     if (this.lastReceivedUpdate !== updateKey) {
                         this.lastReceivedUpdate = updateKey;
+
+                        // Build ACK message
+                        var ackValues = [];
+
                         json.VALUES.forEach(function(obj) {
                             if (obj.NUMBER) {
+                                // Normalize VALUE: -1 means 0 (fix for some devices)
+                                if (obj.VALUE == -1) obj.VALUE = 0;
+
+                                // Collect for ACK
+                                ackValues.push({
+                                    "NUMBER": obj.NUMBER.toString(),
+                                    "STATE": obj.STATE ? obj.STATE.toString() : "OFF"
+                                });
+
+                                // Emit update event
                                 this.emit('UpdateAvailable', {
                                     rcvdOnGateway: this,
                                     msgRcvd: obj
                                 });
                             }
                         }.bind(this));
+
+                        // Send ACK (ITEM_VALUE_RES) to prevent gateway from re-sending
+                        if (ackValues.length > 0) {
+                            var ackMsg = JSON.stringify({
+                                "CMD": "ITEM_VALUE_RES",
+                                "PROTOCOL": "0.03",
+                                "TIMESTAMP": Math.floor(Date.now() / 1000).toString(),
+                                "VALUES": ackValues
+                            }) + "\r\n\r\n";
+                            this.client.write(ackMsg);
+                            this.log.debug("Gateway", this.name, "sent ACK for", ackValues.length, "channels");
+                        }
                     }
                 } else {
                     this.emit('gateway', null, json);
