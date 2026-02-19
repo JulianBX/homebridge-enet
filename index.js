@@ -205,14 +205,24 @@ eNetPlatform.prototype.setupDevices = function() {
                             }
                         }
 
-                        if (acc.context.dimmable && (msgRcvd.VALUE >= 0) && (msgRcvd.VALUE <= 100) && (acc.brightness != msgRcvd.VALUE)) {
-                            this.log.info("Changing light " + acc.context.name + " brightness " + acc.brightness + " -> " + msgRcvd.VALUE);
-                            acc.brightness = msgRcvd.VALUE;
-                            service.getCharacteristic(Characteristic.Brightness).updateValue(msgRcvd.VALUE);
+                        if (acc.context.dimmable) {
+                            // Use SETPOINT as brightness while dimmer is transitioning
+                            var brightness = Number(msgRcvd.VALUE);
+                            var setpoint = Number(msgRcvd.SETPOINT);
+                            if (setpoint >= 0 && setpoint <= 100 && brightness !== setpoint) {
+                                this.log.debug("Light " + acc.context.name + " transitioning (VALUE:" + msgRcvd.VALUE + " SETPOINT:" + setpoint + "), using SETPOINT");
+                                brightness = setpoint;
+                            }
 
-                            if (acc.brightnessCallback) {
-                                acc.brightnessCallback.call(null);
-                                acc.brightnessCallback = null;
+                            if (brightness >= 0 && brightness <= 100 && acc.brightness != brightness) {
+                                this.log.info("Changing light " + acc.context.name + " brightness " + acc.brightness + " -> " + brightness);
+                                acc.brightness = brightness;
+                                service.getCharacteristic(Characteristic.Brightness).updateValue(brightness);
+
+                                if (acc.brightnessCallback) {
+                                    acc.brightnessCallback.call(null);
+                                    acc.brightnessCallback = null;
+                                }
                             }
                         }
                     }
