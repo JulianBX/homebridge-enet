@@ -21,6 +21,7 @@ function gateway(config, log) {
 
     this.client = new net.Socket();
     this.connected = false;
+    this.signedIn = false;
     this.data = '';
     this.log = log || new NoLogger();
 
@@ -30,6 +31,7 @@ function gateway(config, log) {
     this.client.on('close', function() {
         this.log.debug("Gateway", this.name, "on close");
         this.connected = false;
+        this.signedIn = false;
         this.emit('gateway', null, null);
         if (this.recentChannels.length) {
             this.log.info("Gateway", this.name, "closed. Reconnecting in 10 seconds.");
@@ -43,6 +45,7 @@ function gateway(config, log) {
     this.client.on('error', function(err) {
         this.log.error("Gateway", this.name, "on error", err);
         this.connected = false;
+        this.signedIn = false;
         this.emit('gateway', err, null);
         if (this.recentChannels.length) {
             this.log.info("Gateway", this.name, "will try to reconnect in 60 seconds.");
@@ -60,26 +63,36 @@ function gateway(config, log) {
 
         for (var i = 0; i < arr.length - 1; ++i) {
             try {
+                this.log.debug("Gateway", this.name, "RX:", arr[i]);
                 var json = JSON.parse(arr[i]);
-                // Check for channel messages
-                // {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_UPDATE_IND","VALUES":[{"NUMBER":"16","VALUE":"1","STATE":"ON","SETPOINT":"255"}]}
+
+                // Track sign-in state
+                if (json.CMD === "ITEM_VALUE_SIGN_IN_RES") {
+                    this.signedIn = true;
+                    this.log.info("Gateway", this.name, "signed in to channels:", JSON.stringify(json.ITEMS));
+                } else if (json.CMD === "ITEM_VALUE_SIGN_OUT_RES") {
+                    this.signedIn = false;
+                    this.log.info("Gateway", this.name, "signed out");
+                }
+
+                // Check for channel update messages
                 if (json && (json.CMD == "ITEM_UPDATE_IND") && Array.isArray(json.VALUES)) {
                     // Duplicate filtering (keep as fallback safety)
                     var updateKey = JSON.stringify(json);
                     if (this.lastReceivedUpdate !== updateKey) {
                         this.lastReceivedUpdate = updateKey;
 
-                        // Build ACK message
+                        // Build ACK message with NUMBER as integer (matching protocol)
                         var ackValues = [];
 
                         json.VALUES.forEach(function(obj) {
-                            if (obj.NUMBER) {
+                            if (obj.NUMBER !== undefined) {
                                 // Normalize VALUE: -1 means 0 (fix for some devices)
                                 if (obj.VALUE == -1) obj.VALUE = 0;
 
-                                // Collect for ACK
+                                // Collect for ACK - NUMBER must be integer
                                 ackValues.push({
-                                    "NUMBER": obj.NUMBER.toString(),
+                                    "NUMBER": Number(obj.NUMBER),
                                     "STATE": obj.STATE ? obj.STATE.toString() : "OFF"
                                 });
 
@@ -91,7 +104,7 @@ function gateway(config, log) {
                             }
                         }.bind(this));
 
-                        // Send ACK (ITEM_VALUE_RES) to prevent gateway from re-sending
+                        // Send ACK (ITEM_VALUE_RES) to keep registration alive
                         if (ackValues.length > 0) {
                             var ackMsg = JSON.stringify({
                                 "CMD": "ITEM_VALUE_RES",
@@ -99,14 +112,16 @@ function gateway(config, log) {
                                 "TIMESTAMP": Math.floor(Date.now() / 1000).toString(),
                                 "VALUES": ackValues
                             }) + "\r\n\r\n";
-                            this.client.write(ackMsg);
-                            this.log.debug("Gateway", this.name, "sent ACK for", ackValues.length, "channels");
+                            this._write(ackMsg);
                         }
+                    } else {
+                        this.log.debug("Gateway", this.name, "duplicate ITEM_UPDATE_IND ignored");
                     }
                 } else {
                     this.emit('gateway', null, json);
                 }
             } catch (e) {
+                this.log.error("Gateway", this.name, "parse error:", e.message, "raw:", arr[i]);
                 this.emit('gateway', e, null);
             }
         }
@@ -140,6 +155,7 @@ gateway.prototype.disconnect = function() {
 }
 
 gateway.prototype.send = function(data) {
+    this.log.debug("Gateway", this.name, "TX:", data.replace(/\r\n\r\n$/, ''));
     this.client.write(data);
 }
 
@@ -147,6 +163,11 @@ gateway.prototype.send = function(data) {
 //
 //  Gateway commands
 //
+
+gateway.prototype._write = function(msg) {
+    this.log.debug("Gateway", this.name, "TX:", msg.replace(/\r\n\r\n$/, ''));
+    this.client.write(msg);
+}
 
 gateway.prototype.getVersion = function(callback) {
     var l;
@@ -156,7 +177,7 @@ gateway.prototype.getVersion = function(callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"VERSION_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"VERSION_RES","FIRMWARE":"0.91","HARDWARE":"73355700","ENET":"45068305","PROTOCOL":"0.03"}
 }
@@ -169,7 +190,7 @@ gateway.prototype.getBlockList = function(callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"BLOCK_LIST_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}","LIST-RANGE":1}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"BLOCK_LIST_RES","STATE":0,"LIST-RANGE":1,"LIST-SIZE":[36,227,76,35,51,313,97,13,0,0],"DATA-IDS":[1,6,1,1,1,10,1,1,0,0]}
 }
@@ -182,7 +203,7 @@ gateway.prototype.getChannelInfo = function(callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"GET_CHANNEL_INFO_ALL_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"GET_CHANNEL_INFO_ALL_RES","DEVICES":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
 }
@@ -195,7 +216,7 @@ gateway.prototype.getProjectList = function(callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"PROJECT_LIST_GET","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,9 +236,11 @@ gateway.prototype.signOut = function(callback) {
 
     if (!this.connected) this.connect();
 
+    this.log.info("Gateway", this.name, "signing out from channels:", this.recentChannels);
     var msg = `{"ITEMS":${JSON.stringify(this.recentChannels)},"CMD":"ITEM_VALUE_SIGN_OUT_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
     this.recentChannels = [];
+    this.signedIn = false;
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_OUT_RES"}
 }
@@ -234,8 +257,9 @@ gateway.prototype.signIn = function(channels, callback) {
 
     if (!this.connected) this.connect();
 
+    this.log.info("Gateway", this.name, "signing in to channels:", channels);
     var msg = `{"ITEMS":${JSON.stringify(channels)},"CMD":"ITEM_VALUE_SIGN_IN_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_IN_RES","ITEMS":[16]}
 }
@@ -253,9 +277,9 @@ gateway.prototype.refresh = function(callback) {
 
     if (!this.connected) this.connect();
 
-    this.log.debug("Gateway", this.name, "refreshing channels:", this.recentChannels);
+    this.log.debug("Gateway", this.name, "refreshing channels:", this.recentChannels, "(signedIn:", this.signedIn + ")");
     var msg = `{"ITEMS":${JSON.stringify(this.recentChannels)},"CMD":"ITEM_VALUE_SIGN_IN_REQ","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}"}\r\n\r\n`;
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"PROTOCOL":"0.03","TIMESTAMP":"08154711","CMD":"ITEM_VALUE_SIGN_IN_RES","ITEMS":[16]}
 }
@@ -268,8 +292,7 @@ gateway.prototype.setValue = function(channel, on, long, callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"ITEM_VALUE_SET","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}","VALUES":[{"STATE":"${on ? "ON":"OFF"}"${long ? ",\"LONG_CLICK\":\"ON\"" : ""},"NUMBER":${channel}}]}\r\n\r\n`;
-
-    this.client.write(msg);
+    this._write(msg);
 
     // response: {"CMD":"ITEM_VALUE_RES","PROTOCOL":"0.03","TIMESTAMP":"1467998383","VALUES":[{"NUMBER":16,"STATE":"OFF"}]}
 }
@@ -282,8 +305,7 @@ gateway.prototype.setValueDim = function(channel, dimVal, callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"ITEM_VALUE_SET","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}","VALUES":[{"STATE":"VALUE_DIMM","VALUE":${dimVal},"NUMBER":${channel}}]}\r\n\r\n`;
-
-    this.client.write(msg);
+    this._write(msg);
 }
 
 gateway.prototype.setValueBlind = function(channel, blindVal, callback) {
@@ -294,8 +316,7 @@ gateway.prototype.setValueBlind = function(channel, blindVal, callback) {
     if (!this.connected) this.connect();
 
     var msg = `{"CMD":"ITEM_VALUE_SET","PROTOCOL":"0.03","TIMESTAMP":"${Math.floor(Date.now()/1000)}","VALUES":[{"STATE":"VALUE_BLINDS","VALUE":${blindVal},"NUMBER":${channel}}]}\r\n\r\n`;
-
-    this.client.write(msg);
+    this._write(msg);
 }
 
 
