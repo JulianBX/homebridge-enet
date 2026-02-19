@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.9] - 2026-02-19
+
+### Fixed
+- Call HomeKit callbacks immediately on gateway ACK instead of waiting for ITEM_UPDATE_IND (2-3s delay caused "device not responding" in HomeKit)
+- Use SETPOINT as brightness during dimmer transitions to prevent UI flickering back to intermediate values
+
 ## [1.2.8] - 2026-02-19
 
 ### Fixed
