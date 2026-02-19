@@ -1,6 +1,6 @@
 {
   "name": "homebridge-enet-julianbx",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Gira/Jung eNet plugin for Homebridge",
   "main": "index.js",
   "license": "MIT",
