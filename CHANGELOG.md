@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.8] - 2026-02-19
+
+### Fixed
+- Throttle `refresh()` to max once per second to prevent gateway sign-in flooding
+- When HomeKit polls all devices simultaneously, the gateway was flooded with SIGN_IN_REQ messages causing it to drop the registration (`ITEMS:[]`)
+
+## [1.2.7] - 2026-02-19
+
+### Fixed
+- Send `NUMBER` as integer (not string) in ACK messages to match gateway protocol
+- Incorrect ACK format caused the gateway to not recognize acknowledgments and eventually drop the client registration
+
+### Added
+- Raw protocol logging (RX/TX) for all gateway communication (visible in Homebridge debug mode)
+- Sign-in state tracking with `signedIn` flag across connect/disconnect/error cycles
+- Sign-in/sign-out events logged at info level for better visibility
+- Parse errors now include the raw message for easier debugging
+
+## [1.2.5] - 2025-01-29
+
+### Changed
+- Version bump for npm publish
+
 ## [1.2.4] - 2025-01-29
 
 ### Fixed
