@@ -510,10 +510,6 @@ function setOn(position, callback) {
         this.gateway.setValue(this.context.channel, position, false, function(err, res) {
             if (err) {
                 this.log.warn("Error setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + err);
-                if (this.callback) {
-                    this.callback.call(err);
-                    this.callback = null;
-                }
             } else {
                 this.log.info("Succeeded setting " + this.context.name + " to " + (position ? "on" : "off") + ": " + JSON.stringify(res));
                 if (position && this.context.duration) {
@@ -524,6 +520,10 @@ function setOn(position, callback) {
                         }, this.context.duration * 1000);
                     }
                 }
+            }
+            if (this.callback) {
+                this.callback.call(null, err || null);
+                this.callback = null;
             }
         }.bind(this));
     } else {
@@ -581,12 +581,12 @@ function setBrightness(brightness, callback) {
     this.gateway.setValueDim(this.context.channel, brightness, function(err, res) {
         if (err) {
             this.log.warn("Error setting " + this.context.name + " to " + this.brightness + ": " + err);
-            if (this.brightnessCallback) {
-                this.brightnessCallback.call(err);
-                this.brightnessCallback = null;
-            }
         } else {
             this.log.info("Succeeded setting " + this.context.name + " to " + this.brightness + ": " + JSON.stringify(res));
+        }
+        if (this.brightnessCallback) {
+            this.brightnessCallback.call(null, err || null);
+            this.brightnessCallback = null;
         }
     }.bind(this));
 }
