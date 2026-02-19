@@ -1,108 +1,104 @@
-# Initially by ChristophFausak
-
-This package has been forked after Julian's has disappeared from NPM Registry
-
-# Changes:
- ### v0.7.3
- Integrated eNet-api. Improved debug logging.
- ### v0.7.2
- Position updates for switch devices.  
- Allow duration property on lightbulb devices.
- Fix shutter callback issues.
- Fix issues with status updates when using multiple gateways.
- ### v0.7.1
- Fix timing issues on lightbulb devices.
- ### v0.7.0
- Position updates for shutter devices.
- ### v0.6.4
- Now the eNet-Commands can update the homekit states and brightness.
-          So, when using a hardware dimmer or switch the lightbulbs current state will be reflected.
-          There is an issue with time delay and overlapping messages by the mobileGate:
-            When changing the dimmer setting the mobile gate gives an update too fast and the bulb gets updated "on the way" to the desired dim setting.
-            Not yet sure how to slow things down!
-            Nontheless, it works with my dimmers and switches.
-            Hopefully I didn't break anything, so please be careful.
-
 # homebridge-enet
 
-Gira/Jung eNet plugin for homebridge: https://github.com/nfarina/homebridge
+Gira/Jung eNet plugin for [Homebridge](https://homebridge.io). Control eNet devices (lights, switches, shutters/blinds) through Jung/Gira Mobile Gateways via HomeKit.
 
-This plugin can communicate with Jung/Gira Mobile Gateways and their provisioned devices.
-Currently, the whole setup needs to be done with the respective Jung/Gira eNet app.
-Then you need to get the channels for your devices. You might guess them - first used channel is 16.
-Or you use the sampe-gateway.js from the homebridge-enet package to read the config of your gateway.
+Originally by [ChristophFausak](https://github.com/christophfausak/homebridge-enet), forked and maintained by [JulianBX](https://github.com/JulianBX/homebridge-enet).
 
+## Features
 
-# Installation
+- Lights (on/off, dimmable)
+- Switches (on/off, optional auto-off timer)
+- Shutters/Blinds (position control)
+- Auto-discovery of gateways via UDP broadcast
+- Real-time device state updates via gateway push notifications
+- Homebridge Config UI X support
 
-1. Install homebridge using: `npm install -g homebridge`
-2. Install this plugin using: `npm install -g https://github.com/JulianBX/homebridge-enet`
-3. Update your configuration file. See the sample below.
+## Installation
 
-# Configuration
+### Via Homebridge UI (recommended)
+
+Search for `homebridge-enet-julianbx` in the Homebridge plugin tab.
+
+### Via npm
+
+```bash
+npm install -g homebridge-enet-julianbx
+```
+
+## Configuration
 
 Configuration sample:
 
- ```javascript
+```json
+{
+    "platforms": [
+        {
+            "platform": "eNetPlatform",
+            "name": "eNet",
+            "autodiscover": true,
+            "gateways": [{
+                "name": "Mobile Gate",
+                "mac": null,
+                "host": null,
+                "accessories": [
+                    {
+                        "channel": 16,
+                        "name": "Kitchen",
+                        "type": "Shutter"
+                    },
+                    {
+                        "channel": 17,
+                        "name": "Toaster",
+                        "type": "Switch",
+                        "duration": 120
+                    },
+                    {
+                        "channel": 18,
+                        "name": "Main Light",
+                        "type": "Light",
+                        "dimmable": true
+                    }
+                ]
+            }]
+        }
+    ]
+}
+```
 
-     "platforms": [
-         {
-             "platform": "eNetPlatform",
-             "name": "eNet",
-             "autodiscover": true,
-             "gateways": [{
-                 "name": "Mobile Gate",
-                 "mac": null,
-                 "host": null,
-                 "accessories": [
-                     {
-                         "channel": 16,
-                         "name": "Kitchen",
-                         "type": "Shutter"
-                     },
-                     {
-                         "channel": 17,
-                         "name": "Toaster",
-                         "type": "Switch",
-                         "duration": 120
-                     },
-                     {
-                         "channel": 18,
-                         "name": "Main Light",
-                         "type": "Light",
-                         "dimmable": true
-                     }
-                 ]
-             }]
-         }
-     ]
- }
+### Platform Options
 
- ```
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `autodiscover` | No | `true` | Discover gateways via UDP broadcast. If `false`, all gateways need `host` set. |
 
+### Gateway Identification
 
-`autodiscover` is **optional**. If set to false, no broadcast discovery takes place, all gateways need to have the "host" property set. Default is to autodiscover gateways using broadcasts.
+Each gateway needs one of these identifiers:
 
-`gateways` is a list of gateways.
+| Option | Description |
+|--------|-------------|
+| `host` | Hostname or IP address |
+| `mac` | MAC address (e.g. `00:0a:b3:e8:2b:11`) |
+| `name` | Gateway name as set in the Jung/Gira eNet app (default: "Mobile Gate") |
 
-For each gateway, you need to give an identification, which will be used to find the gateway on the network. You have three possibilities:
-* `host` - if you provide a hostname or ip address that is the identification for the gateway.
-* `mac` - you can specify the mac-address of the gateway, e.g. by running sampe-discovery.js from the homebridge-enet package.
-* `name` - identify gateway by its name. You can set this name with the Jung/Gira eNet app. Factory default is "Mobile Gate"
+### Accessory Options
 
-`accessories` is a list of defined accessories on the gateway. Every accessory has the following properies:
-* `channel` - The eNet channel assigned to the accessory.
-* `name` - The HomeKit name of the accessory.
-* `type` - Type of accessory. Currently supported:
-    * `Shutter` - Window accessory. You can set the target position.
-    * `Switch` - An on/off switch.
-    * `Light` - Same as `Switch`, but with a Lightbulb icon on Homekit.
-* `duration` - **optional** When the accessory is switched on, it will be automatically switched off after `duration` seconds. Only for `Switch` and `Light` accessories.
-* `dimmable` - **optional** Only for `Light` accessories.
+| Option | Required | Description |
+|--------|----------|-------------|
+| `channel` | Yes | eNet channel number (first user channel is 16) |
+| `name` | Yes | Display name in HomeKit |
+| `type` | Yes | `Light`, `Switch`, or `Shutter` |
+| `dimmable` | No | Enable dimming for `Light` accessories |
+| `duration` | No | Auto-off timer in seconds (for `Switch` and `Light`) |
 
+## Debugging
 
+Enable debug logging by starting Homebridge with the `-D` flag or enabling debug mode in the Homebridge UI. This will show all gateway communication (RX/TX messages) for troubleshooting.
 
+## Changelog
 
-# License
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## License
 
 Published under the MIT License.
