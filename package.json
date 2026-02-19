@@ -23,5 +23,10 @@
   "bugs": {
     "url": "https://github.com/JulianBX/homebridge-enet/issues"
   },
+  "changelog": "CHANGELOG.md",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/JulianBX/homebridge-enet"
+  },
   "dependencies": {}
 }
