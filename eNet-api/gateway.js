@@ -265,15 +265,19 @@ gateway.prototype.signIn = function(channels, callback) {
 }
 
 gateway.prototype.refresh = function(callback) {
-    var l;
-
     if (!Array.isArray(this.recentChannels) || !this.recentChannels.length) {
         this.log.debug("Gateway", this.name, "refresh: No recentChannels yet");
         if (callback) callback(new Error('refresh: Not signed in to any channels.'));
         return;
     }
 
-    if (callback) l = new responseListener(this, "ITEM_VALUE_SIGN_IN_RES", callback);
+    // Debounce: only send one SIGN_IN_REQ per second to avoid flooding the gateway
+    var now = Date.now();
+    if (this._lastRefresh && (now - this._lastRefresh < 1000)) {
+        this.log.debug("Gateway", this.name, "refresh: throttled (last refresh", (now - this._lastRefresh) + "ms ago)");
+        return;
+    }
+    this._lastRefresh = now;
 
     if (!this.connected) this.connect();
 
